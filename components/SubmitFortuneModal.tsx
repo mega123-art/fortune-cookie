@@ -2,14 +2,15 @@
 
 import { useState, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, PaperPlaneTilt, ArrowSquareOut, Sparkle } from "@phosphor-icons/react"
-import { type Signer, BrowserProvider } from "ethers"
+import { X, ArrowSquareOut, Sparkle } from "@phosphor-icons/react"
+import { type Signer } from "ethers"
 import { writeFortune, type FortuneRow } from "@/lib/sdk"
 import { upsertFortune } from "@/lib/fortuneCache"
-import { ensureMonadTestnet } from "@/lib/wallet"
+import { getProviderForWallet, ensureMonadTestnet, type WalletType } from "@/lib/wallet"
 import { MONAD_TESTNET } from "@/lib/monad"
+import WalletPicker from "./WalletPicker"
 
-type SubmitStatus = "idle" | "connecting" | "writing" | "done" | "error"
+type SubmitStatus = "pick" | "connecting" | "writing" | "done" | "error"
 type Category = "wisdom" | "humor" | "motivation" | "mystery"
 
 const CATEGORIES: Category[] = ["wisdom", "humor", "motivation", "mystery"]
@@ -23,20 +24,15 @@ interface Props {
 export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props) {
   const [text, setText] = useState("")
   const [category, setCategory] = useState<Category>("wisdom")
-  const [status, setStatus] = useState<SubmitStatus>("idle")
+  const [status, setStatus] = useState<SubmitStatus>("pick")
   const [txHash, setTxHash] = useState("")
   const [error, setError] = useState("")
   const [progress, setProgress] = useState(0)
 
   const remaining = 100 - text.length
 
-  const handleSubmit = useCallback(async () => {
+  const handleWalletSelect = useCallback(async (type: WalletType) => {
     if (!text.trim() || text.length > 100) return
-    if (typeof window === "undefined" || !window.ethereum) {
-      setError("No wallet detected. Install MetaMask.")
-      setStatus("error")
-      return
-    }
 
     setStatus("connecting")
     setError("")
@@ -44,7 +40,7 @@ export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props
 
     let signer: Signer
     try {
-      const provider = new BrowserProvider(window.ethereum)
+      const provider = getProviderForWallet(type)
       await ensureMonadTestnet(provider)
       signer = await provider.getSigner()
     } catch (e: unknown) {
@@ -84,7 +80,7 @@ export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props
     if (status === "writing" || status === "connecting") return
     setText("")
     setCategory("wisdom")
-    setStatus("idle")
+    setStatus("pick")
     setTxHash("")
     setError("")
     setProgress(0)
@@ -170,7 +166,7 @@ export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props
                         color: "#FFF5E4",
                         caretColor: "#A78BFA",
                       }}
-                      disabled={status !== "idle" && status !== "error"}
+                      disabled={status !== "pick" && status !== "error"}
                     />
                     <div
                       className="text-right text-xs mt-1"
@@ -197,7 +193,7 @@ export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props
                         <button
                           key={c}
                           onClick={() => setCategory(c)}
-                          disabled={status !== "idle" && status !== "error"}
+                          disabled={status !== "pick" && status !== "error"}
                           className="py-2 px-3 rounded-xl text-xs font-semibold capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] disabled:opacity-40"
                           style={{
                             fontFamily: "var(--font-nunito)",
@@ -259,42 +255,26 @@ export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props
                     </p>
                   )}
 
-                  {/* Submit */}
-                  <motion.button
-                    onClick={handleSubmit}
-                    disabled={
-                      !text.trim() ||
-                      text.length > 100 ||
-                      status === "connecting" ||
-                      status === "writing"
-                    }
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97, y: 1 }}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FF9F43]/60 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{
-                      fontFamily: "var(--font-nunito)",
-                      background: "linear-gradient(135deg, #FF9F43, #E8820A)",
-                      color: "#1A1033",
-                      minHeight: 44,
-                    }}
-                  >
-                    {status === "connecting" ? (
-                      <>
-                        <span className="animate-spin inline-block w-3 h-3 border-2 border-[#1A1033] border-t-transparent rounded-full" />
-                        Connecting wallet…
-                      </>
-                    ) : status === "writing" ? (
-                      <>
-                        <span className="animate-spin inline-block w-3 h-3 border-2 border-[#1A1033] border-t-transparent rounded-full" />
-                        Writing to chain…
-                      </>
-                    ) : (
-                      <>
-                        <PaperPlaneTilt weight="bold" size={16} />
-                        Immortalize on Monad
-                      </>
-                    )}
-                  </motion.button>
+                  {/* Submit — wallet picker or loading state */}
+                  {(status === "pick" || status === "error") ? (
+                    <div style={{ opacity: !text.trim() || text.length > 100 ? 0.4 : 1, pointerEvents: !text.trim() || text.length > 100 ? "none" : "auto" }}>
+                      <WalletPicker onSelect={handleWalletSelect} label="Immortalize with" />
+                    </div>
+                  ) : (
+                    <div
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold"
+                      style={{
+                        fontFamily: "var(--font-nunito)",
+                        background: "rgba(255,159,67,0.12)",
+                        border: "1px solid rgba(255,159,67,0.3)",
+                        color: "#FF9F43",
+                        minHeight: 44,
+                      }}
+                    >
+                      <span className="animate-spin inline-block w-3 h-3 border-2 border-[#FF9F43] border-t-transparent rounded-full" />
+                      {status === "connecting" ? "Connecting wallet…" : "Writing to chain…"}
+                    </div>
+                  )}
                 </>
               ) : (
                 /* Success state */

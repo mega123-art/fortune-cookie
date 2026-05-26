@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ArrowCounterClockwise, PenNib } from "@phosphor-icons/react"
 
@@ -12,6 +12,7 @@ import ShareButton from "./ShareButton"
 import SoundToggle, { useSoundEngine } from "./SoundToggle"
 import WalletConnect from "./WalletConnect"
 import SubmitFortuneModal from "./SubmitFortuneModal"
+import PaymentGate from "./PaymentGate"
 
 import { useFortune } from "@/hooks/useFortune"
 import { useHistory } from "@/hooks/useHistory"
@@ -23,25 +24,40 @@ const categoryStyle: Record<string, { bg: string; color: string }> = {
   mystery:    { bg: "rgba(45,27,94,0.6)",      color: "#A78BFA" },
 }
 
+const stagger = {
+  container: {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.12, delayChildren: 0.05 } },
+  },
+  item: {
+    hidden: { opacity: 0, y: 20, scale: 0.96 },
+    show:   { opacity: 1, y: 0, scale: 1, transition: { type: "spring" as const, stiffness: 280, damping: 24 } },
+  },
+}
+
 export default function CookiePage() {
   const [cookieState, setCookieState] = useState<CookieState>("idle")
   const [confettiBurst, setConfettiBurst] = useState(false)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [category, setCategory] = useState<string>("")
   const [submitOpen, setSubmitOpen] = useState(false)
+  const [paymentGateOpen, setPaymentGateOpen] = useState(false)
+  const [pendingFortune, setPendingFortune] = useState<import("@/data/fortunes").Fortune | null>(null)
+  const [mounted, setMounted] = useState(false)
+  const fortuneCount = useRef(0)
 
-  const { current: fortune, pickFortune } = useFortune()
+  useEffect(() => {
+    setMounted(true)
+    fortuneCount.current = parseInt(localStorage.getItem("fortune_reveal_count") ?? "0", 10)
+  }, [])
+
+  const { current: fortune, pickFortune, syncing } = useFortune()
   const { addEntry } = useHistory()
   const { playCrack, playChime } = useSoundEngine(soundEnabled)
 
-  const handleCookieClick = useCallback(async () => {
-    if (cookieState !== "idle") return
-
+  const doCrack = useCallback((picked: import("@/data/fortunes").Fortune) => {
     setCookieState("cracking")
     playCrack()
-
-    // fetch from IQDB (or local fallback) while crack animation plays
-    const picked = await pickFortune()
     setCategory(picked.category)
 
     setTimeout(() => {
@@ -50,11 +66,38 @@ export default function CookiePage() {
       playChime()
       setTimeout(() => setConfettiBurst(false), 100)
     }, 820)
-  }, [cookieState, pickFortune, playCrack, playChime])
+  }, [playCrack, playChime])
+
+  const handleCookieClick = useCallback(async () => {
+    if (cookieState !== "idle") return
+
+    const picked = await pickFortune()
+
+    if (fortuneCount.current > 0) {
+      // not first fortune — pre-pick done, show payment gate
+      setPendingFortune(picked)
+      setPaymentGateOpen(true)
+      return
+    }
+
+    doCrack(picked)
+  }, [cookieState, doCrack, pickFortune])
+
+  const handlePaymentSuccess = useCallback(() => {
+    setPaymentGateOpen(false)
+    if (pendingFortune) {
+      doCrack(pendingFortune)
+      setPendingFortune(null)
+    }
+  }, [doCrack, pendingFortune])
 
   const handleFortuneReady = useCallback(() => {
     setCookieState("read")
-    if (fortune) addEntry(fortune)
+    if (fortune) {
+      addEntry(fortune)
+      fortuneCount.current += 1
+      localStorage.setItem("fortune_reveal_count", String(fortuneCount.current))
+    }
   }, [fortune, addEntry])
 
   const handleReset = useCallback(() => {
@@ -79,6 +122,9 @@ export default function CookiePage() {
       {/* Write-your-own button — top-left */}
       <motion.button
         onClick={() => setSubmitOpen(true)}
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: mounted ? 1 : 0, x: mounted ? 0 : -12 }}
+        transition={{ type: "spring", stiffness: 260, damping: 22, delay: 0.3 }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.94 }}
         className="fixed top-5 left-5 z-20 flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#A78BFA]/60"
@@ -95,6 +141,37 @@ export default function CookiePage() {
         <PenNib size={12} weight="bold" />
         Write yours
       </motion.button>
+
+      {/* On-chain syncing indicator */}
+      <AnimatePresence>
+        {syncing && cookieState === "idle" && (
+          <motion.div
+            key="syncing"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.4 }}
+            className="fixed top-5 left-1/2 z-20 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs"
+            style={{
+              fontFamily: "var(--font-nunito)",
+              background: "rgba(45,27,94,0.5)",
+              border: "1px solid rgba(167,139,250,0.2)",
+              color: "rgba(196,181,253,0.7)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            <span
+              style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: "#A78BFA",
+                display: "inline-block",
+                animation: "pulse 1.2s ease-in-out infinite",
+              }}
+            />
+            Syncing on-chain fortunes
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Category badge */}
       <AnimatePresence>
@@ -118,16 +195,20 @@ export default function CookiePage() {
         )}
       </AnimatePresence>
 
-      {/* Main content */}
-      <div className="relative z-10 flex flex-col items-center gap-8 w-full max-w-md">
+      {/* Main content — staggered entrance on mount */}
+      <motion.div
+        className="relative z-10 flex flex-col items-center gap-8 w-full max-w-md"
+        variants={stagger.container}
+        initial="hidden"
+        animate={mounted ? "show" : "hidden"}
+      >
 
         {/* Title */}
         <AnimatePresence>
           {cookieState === "idle" && (
             <motion.h1
               key="title"
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
+              variants={stagger.item}
               exit={{ opacity: 0, y: -12 }}
               className="text-4xl md:text-5xl tracking-tight text-center leading-none"
               style={{ fontFamily: "var(--font-fredoka)", color: "#FFF5E4", fontWeight: 600 }}
@@ -138,23 +219,51 @@ export default function CookiePage() {
         </AnimatePresence>
 
         {/* Cookie */}
-        <div
-          className={cookieState === "idle" ? "animate-float" : ""}
-          style={{
-            filter: cookieState === "idle" ? "drop-shadow(0 0 28px #FF9F43aa)" : "none",
-            transition: "filter 0.3s",
-          }}
+        <motion.div
+          variants={stagger.item}
+          className="relative"
+          style={{ display: "inline-block" }}
         >
-          <FortuneCookie state={cookieState} onClick={handleCookieClick} />
-        </div>
+          <div
+            className={cookieState === "idle" ? "animate-float" : ""}
+            style={{
+              filter: cookieState === "idle" ? "drop-shadow(0 0 28px #FF9F43aa)" : "none",
+              transition: "filter 0.3s",
+            }}
+          >
+            <FortuneCookie state={cookieState} onClick={handleCookieClick} />
+          </div>
+          {/* Lock badge — shows when payment required */}
+          <AnimatePresence>
+            {mounted && fortuneCount.current > 0 && cookieState === "idle" && (
+              <motion.div
+                key="lock-badge"
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ type: "spring", stiffness: 340, damping: 22 }}
+                className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold pointer-events-none"
+                style={{
+                  fontFamily: "var(--font-nunito)",
+                  background: "rgba(255,215,0,0.15)",
+                  border: "1px solid rgba(255,215,0,0.4)",
+                  color: "#FFD700",
+                  backdropFilter: "blur(6px)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                🔒 0.001 MON
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
         {/* Hint text */}
         <AnimatePresence>
           {cookieState === "idle" && (
             <motion.p
               key="hint"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              variants={stagger.item}
               exit={{ opacity: 0 }}
               className="animate-text-pulse text-center text-sm"
               style={{ fontFamily: "var(--font-nunito)", color: "#C4B5FD", letterSpacing: "0.04em" }}
@@ -229,7 +338,14 @@ export default function CookiePage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
+
+      <PaymentGate
+        open={paymentGateOpen}
+        authorAddress={pendingFortune?.author}
+        onClose={() => { setPaymentGateOpen(false); setPendingFortune(null) }}
+        onPaid={handlePaymentSuccess}
+      />
 
       <SubmitFortuneModal
         open={submitOpen}

@@ -5,6 +5,7 @@ export interface Fortune {
   luckyColor: string
   luckyEmoji: string
   category: "wisdom" | "humor" | "motivation" | "mystery"
+  author?: string   // wallet address or "anonymous"
 }
 
 export const fortunes: Fortune[] = [

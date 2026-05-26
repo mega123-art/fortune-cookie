@@ -2,33 +2,32 @@
 
 import { useState, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Wallet, ArrowSquareOut, Warning } from "@phosphor-icons/react"
-import { connectWallet, inscribeFortuneOnChain } from "@/lib/wallet"
+import { ArrowSquareOut, Warning } from "@phosphor-icons/react"
+import { connectWallet, inscribeFortuneOnChain, type WalletType } from "@/lib/wallet"
 import { MONAD_TESTNET } from "@/lib/monad"
 import { type Fortune } from "@/data/fortunes"
+import WalletPicker from "./WalletPicker"
 
 interface Props {
   fortune: Fortune | null
 }
 
-type WalletStatus = "disconnected" | "connecting" | "connected" | "inscribing" | "inscribed" | "error"
+type WalletStatus = "pick" | "connecting" | "connected" | "inscribing" | "inscribed" | "error"
+// "pick" and "error" both show the wallet picker; "connecting" is transient
 
 export default function WalletConnect({ fortune }: Props) {
-  const [status, setStatus] = useState<WalletStatus>("disconnected")
+  const [status, setStatus] = useState<WalletStatus>("pick")
   const [address, setAddress] = useState<string>("")
+  const [walletType, setWalletType] = useState<WalletType>("metamask")
   const [txHash, setTxHash] = useState<string>("")
   const [error, setError] = useState<string>("")
 
-  const handleConnect = useCallback(async () => {
-    if (typeof window === "undefined" || !window.ethereum) {
-      setError("No wallet detected. Install MetaMask.")
-      setStatus("error")
-      return
-    }
+  const handleWalletSelect = useCallback(async (type: WalletType) => {
+    setWalletType(type)
     setStatus("connecting")
     setError("")
     try {
-      const addr = await connectWallet()
+      const addr = await connectWallet(type)
       setAddress(addr)
       setStatus("connected")
     } catch (e: unknown) {
@@ -42,14 +41,14 @@ export default function WalletConnect({ fortune }: Props) {
     setStatus("inscribing")
     setError("")
     try {
-      const hash = await inscribeFortuneOnChain(fortune.id, fortune.text)
+      const hash = await inscribeFortuneOnChain(fortune.id, fortune.text, walletType)
       setTxHash(hash)
       setStatus("inscribed")
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Transaction failed")
       setStatus("error")
     }
-  }, [fortune])
+  }, [fortune, walletType])
 
   const shortAddr = address ? `${address.slice(0, 6)}…${address.slice(-4)}` : ""
 
@@ -76,23 +75,18 @@ export default function WalletConnect({ fortune }: Props) {
         )}
       </AnimatePresence>
 
-      {status === "disconnected" || status === "error" ? (
-        <motion.button
-          onClick={handleConnect}
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97, y: 1 }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-semibold focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#A78BFA]/60"
-          style={{
-            fontFamily: "var(--font-nunito)",
-            background: "rgba(45,27,94,0.6)",
-            border: "1px solid rgba(167,139,250,0.25)",
-            color: "#C4B5FD",
-            minHeight: 44,
-          }}
-        >
-          <Wallet size={14} weight="bold" />
-          Connect Wallet
-        </motion.button>
+      {status === "pick" || status === "error" ? (
+        <div className="w-full">
+          <WalletPicker
+            onSelect={handleWalletSelect}
+            label="Inscribe with"
+          />
+          {status === "error" && !error.toLowerCase().includes("switch") && (
+            <p className="text-xs text-center mt-2" style={{ color: "#FC8181", fontFamily: "var(--font-nunito)" }}>
+              {error}
+            </p>
+          )}
+        </div>
       ) : status === "connecting" ? (
         <div
           className="text-xs flex items-center gap-2"
@@ -115,7 +109,6 @@ export default function WalletConnect({ fortune }: Props) {
             minHeight: 44,
           }}
         >
-          <Wallet size={14} weight="bold" />
           Inscribe on Monad ({shortAddr})
         </motion.button>
       ) : status === "inscribing" ? (
@@ -140,12 +133,6 @@ export default function WalletConnect({ fortune }: Props) {
           Inscribed on Monad: {txHash.slice(0, 10)}…{txHash.slice(-6)}
         </motion.a>
       ) : null}
-
-      {status === "error" && !error.toLowerCase().includes("switch") && (
-        <p className="text-xs text-center" style={{ color: "#FC8181", fontFamily: "var(--font-nunito)" }}>
-          {error}
-        </p>
-      )}
     </div>
   )
 }

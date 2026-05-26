@@ -10,12 +10,16 @@ interface Cache {
 
 const REFRESH_INTERVAL_MS = 60_000
 
+// Seed local fortunes immediately so cache is usable before RPC resolves
 const cache: Cache = {
-  rows: [],
+  rows: localToFortuneRow(),
   seenHashes: new Set(),
   lastRefresh: 0,
-  ready: false,
+  ready: true,
 }
+
+// Track on-chain sync separately so UI can show syncing state
+export let onChainSyncing = true
 
 let initPromise: Promise<void> | null = null
 
@@ -44,24 +48,20 @@ async function load() {
     for (const { txHash, data } of rows) merge(txHash, data)
     cache.rows.sort((a, b) => b.timestamp - a.timestamp)
     cache.lastRefresh = Date.now()
-    cache.ready = true
     console.log(`[fortuneCache] loaded ${cache.rows.length} on-chain fortunes`)
   } catch (err) {
     console.warn("[fortuneCache] fetch failed, using local fallback:", err)
-    if (cache.rows.length === 0) {
-      cache.rows = localToFortuneRow()
-    }
-    cache.ready = true
+  } finally {
+    onChainSyncing = false
   }
 }
 
+// Start loading on-chain fortunes immediately on module init (non-blocking)
+initPromise = load()
+
 export async function getCache(): Promise<Cache> {
-  if (!cache.ready) {
-    if (!initPromise) initPromise = load()
-    await initPromise
-  }
-  // refresh every 60s
-  if (cache.ready && Date.now() - cache.lastRefresh > REFRESH_INTERVAL_MS) {
+  // refresh every 60s after initial load
+  if (cache.lastRefresh > 0 && Date.now() - cache.lastRefresh > REFRESH_INTERVAL_MS) {
     load().catch(() => {})
   }
   return cache
