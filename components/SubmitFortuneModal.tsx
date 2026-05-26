@@ -6,7 +6,7 @@ import { X, ArrowSquareOut, Sparkle } from "@phosphor-icons/react"
 import { type Signer } from "ethers"
 import { writeFortune, type FortuneRow } from "@/lib/sdk"
 import { upsertFortune } from "@/lib/fortuneCache"
-import { getProviderForWallet, ensureMonad, type WalletType } from "@/lib/wallet"
+import { getConnectedProvider, ensureMonad, type WalletType } from "@/lib/wallet"
 import { MONAD } from "@/lib/monad"
 import WalletPicker from "./WalletPicker"
 
@@ -40,7 +40,7 @@ export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props
 
     let signer: Signer
     try {
-      const provider = getProviderForWallet(type)
+      const provider = await getConnectedProvider(type)
       await ensureMonad(provider)
       signer = await provider.getSigner()
     } catch (e: unknown) {

@@ -35,7 +35,7 @@ export function detectWallets(): { metamask: boolean; phantom: boolean } {
   }
 }
 
-function getRawProvider(type: WalletType): EIP1193Provider {
+export function getRawProvider(type: WalletType): EIP1193Provider {
   if (type === "metamask") {
     // Prefer the specific MetaMask entry in the multi-wallet providers array
     if (window.ethereum?.providers?.length) {
@@ -49,6 +49,14 @@ function getRawProvider(type: WalletType): EIP1193Provider {
   const p = window.phantom?.ethereum ?? (window.ethereum?.isPhantom ? window.ethereum : null)
   if (!p) throw new Error("Phantom not found. Install Phantom.")
   return p
+}
+
+export async function getConnectedProvider(type: WalletType): Promise<BrowserProvider> {
+  const raw = getRawProvider(type)
+  // Request accounts on the raw EIP-1193 provider — works for both MetaMask and Phantom
+  await raw.request({ method: "eth_requestAccounts", params: [] })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new BrowserProvider(raw as any)
 }
 
 export function getProviderForWallet(type: WalletType): BrowserProvider {
@@ -87,8 +95,7 @@ export async function ensureMonad(provider: BrowserProvider): Promise<void> {
 }
 
 export async function connectWallet(type: WalletType = "metamask"): Promise<string> {
-  const provider = getProviderForWallet(type)
-  await provider.send("eth_requestAccounts", [])
+  const provider = await getConnectedProvider(type)
   await ensureMonad(provider)
   const signer = await provider.getSigner()
   return signer.address
@@ -108,8 +115,7 @@ export async function payForFortune(
   authorAddress: string | undefined,
   type: WalletType = "metamask"
 ): Promise<PayResult> {
-  const provider = getProviderForWallet(type)
-  await provider.send("eth_requestAccounts", [])
+  const provider = await getConnectedProvider(type)
   await ensureMonad(provider)
   const signer = await provider.getSigner()
 
@@ -142,8 +148,7 @@ export async function inscribeFortuneOnChain(
   fortuneText: string,
   type: WalletType = "metamask"
 ): Promise<string> {
-  const provider = getProviderForWallet(type)
-  await provider.send("eth_requestAccounts", [])
+  const provider = await getConnectedProvider(type)
   await ensureMonad(provider)
   const signer = await provider.getSigner()
 
