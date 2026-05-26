@@ -46,6 +46,7 @@ export default function CookiePage() {
   const [pendingFortune, setPendingFortune] = useState<import("@/data/fortunes").Fortune | null>(null)
   const [mounted, setMounted] = useState(false)
   const [isPaidRequired, setIsPaidRequired] = useState(false)
+  const [lastFortune, setLastFortune] = useState<import("@/data/fortunes").Fortune | null>(null)
   const fortuneCount = useRef(0)
 
   useEffect(() => {
@@ -53,6 +54,10 @@ export default function CookiePage() {
     const count = parseInt(localStorage.getItem("fortune_reveal_count") ?? "0", 10)
     fortuneCount.current = count
     setIsPaidRequired(count > 0)
+    const saved = localStorage.getItem("last_fortune")
+    if (saved) {
+      try { setLastFortune(JSON.parse(saved)) } catch { /* ignore */ }
+    }
   }, [])
 
   const { current: fortune, pickFortune, syncing } = useFortune()
@@ -101,6 +106,8 @@ export default function CookiePage() {
       addEntry(fortune)
       fortuneCount.current += 1
       localStorage.setItem("fortune_reveal_count", String(fortuneCount.current))
+      localStorage.setItem("last_fortune", JSON.stringify(fortune))
+      setLastFortune(fortune)
       setIsPaidRequired(true)
     }
   }, [fortune, addEntry])
@@ -315,6 +322,46 @@ export default function CookiePage() {
             >
               The universe is deciding…
             </motion.p>
+          )}
+        </AnimatePresence>
+
+        {/* Last fortune recall — shown on idle when user has cracked before */}
+        <AnimatePresence>
+          {mounted && cookieState === "idle" && lastFortune && (
+            <motion.div
+              key="last-fortune"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ type: "spring" as const, stiffness: 260, damping: 24, delay: 0.15 }}
+              className="w-full rounded-2xl px-5 py-4 flex flex-col gap-2"
+              style={{
+                background: "rgba(45,27,94,0.4)",
+                border: "1px solid rgba(167,139,250,0.18)",
+                backdropFilter: "blur(10px)",
+              }}
+            >
+              <p
+                className="text-xs uppercase tracking-widest"
+                style={{ fontFamily: "var(--font-nunito)", color: "rgba(196,181,253,0.5)" }}
+              >
+                Your last fortune
+              </p>
+              <p
+                className="text-sm leading-relaxed"
+                style={{ fontFamily: "var(--font-nunito)", color: "#E9D5FF" }}
+              >
+                &ldquo;{lastFortune.text}&rdquo;
+              </p>
+              {lastFortune.luckyNumbers?.length > 0 && (
+                <p
+                  className="text-xs"
+                  style={{ fontFamily: "var(--font-vt323)", color: "rgba(196,181,253,0.5)", letterSpacing: "0.06em" }}
+                >
+                  Lucky: {lastFortune.luckyNumbers.join(" · ")}
+                </p>
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
 

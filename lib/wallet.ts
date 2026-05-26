@@ -3,63 +3,86 @@ import { MONAD, FORTUNE_PRICE_WEI, FORTUNE_HALF_PRICE_WEI } from "./monad"
 
 export type WalletType = "metamask" | "phantom"
 
+type EIP1193Provider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
+  on: (event: string, handler: (...args: unknown[]) => void) => void
+  removeListener: (event: string, handler: (...args: unknown[]) => void) => void
+  isMetaMask?: boolean
+  isPhantom?: boolean
+}
+
 declare global {
   interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
-      on: (event: string, handler: (...args: unknown[]) => void) => void
-      removeListener: (event: string, handler: (...args: unknown[]) => void) => void
-      isMetaMask?: boolean
-      isPhantom?: boolean
-    }
-    phantom?: {
-      ethereum?: {
-        request: (args: { method: string; params?: unknown[] }) => Promise<unknown>
-        on: (event: string, handler: (...args: unknown[]) => void) => void
-        removeListener: (event: string, handler: (...args: unknown[]) => void) => void
-        isPhantom?: boolean
-      }
-    }
+    ethereum?: EIP1193Provider & { providers?: EIP1193Provider[] }
+    phantom?: { ethereum?: EIP1193Provider }
   }
 }
 
 export function detectWallets(): { metamask: boolean; phantom: boolean } {
   if (typeof window === "undefined") return { metamask: false, phantom: false }
+  // EIP-5749: when multiple wallets coexist, each injects into window.ethereum.providers
+  if (window.ethereum?.providers?.length) {
+    return {
+      metamask: window.ethereum.providers.some(p => p.isMetaMask && !p.isPhantom),
+      phantom: !!window.phantom?.ethereum || window.ethereum.providers.some(p => p.isPhantom),
+    }
+  }
   const phantomDedicated = !!window.phantom?.ethereum
   const phantomViaEthereum = !!(window.ethereum?.isPhantom)
-  const metamask = !!(window.ethereum?.isMetaMask) && !phantomViaEthereum
   return {
-    metamask,
+    metamask: !!(window.ethereum?.isMetaMask) && !phantomViaEthereum,
     phantom: phantomDedicated || phantomViaEthereum,
   }
 }
 
-export function getProviderForWallet(type: WalletType): BrowserProvider {
-  if (type === "phantom") {
-    const provider = window.phantom?.ethereum ?? (window.ethereum?.isPhantom ? window.ethereum : null)
-    if (!provider) throw new Error("Phantom wallet not found. Install Phantom.")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return new BrowserProvider(provider as any)
+function getRawProvider(type: WalletType): EIP1193Provider {
+  if (type === "metamask") {
+    // Prefer the specific MetaMask entry in the multi-wallet providers array
+    if (window.ethereum?.providers?.length) {
+      const mm = window.ethereum.providers.find(p => p.isMetaMask && !p.isPhantom)
+      if (mm) return mm
+    }
+    if (window.ethereum?.isMetaMask) return window.ethereum
+    throw new Error("MetaMask not found. Install MetaMask.")
   }
-  if (!window.ethereum) throw new Error("No wallet detected. Install MetaMask.")
-  return new BrowserProvider(window.ethereum)
+  // phantom
+  const p = window.phantom?.ethereum ?? (window.ethereum?.isPhantom ? window.ethereum : null)
+  if (!p) throw new Error("Phantom not found. Install Phantom.")
+  return p
+}
+
+export function getProviderForWallet(type: WalletType): BrowserProvider {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new BrowserProvider(getRawProvider(type) as any)
 }
 
 export async function ensureMonad(provider: BrowserProvider): Promise<void> {
   const net = await provider.getNetwork()
   if (Number(net.chainId) === MONAD.chainId) return
+
+  const chainParams = {
+    chainId: MONAD.chainIdHex,
+    chainName: MONAD.name,
+    rpcUrls: [MONAD.rpcUrl],
+    nativeCurrency: MONAD.currency,
+    blockExplorerUrls: [MONAD.explorerUrl],
+  }
+
   try {
     await provider.send("wallet_switchEthereumChain", [{ chainId: MONAD.chainIdHex }])
-  } catch {
-    await provider.send("wallet_addEthereumChain", [
-      {
-        chainId: MONAD.chainIdHex,
-        chainName: MONAD.name,
-        rpcUrls: [MONAD.rpcUrl],
-        nativeCurrency: MONAD.currency,
-        blockExplorerUrls: [MONAD.explorerUrl],
-      },
-    ])
+  } catch (switchErr: unknown) {
+    // 4902 = chain not added yet
+    const code = (switchErr as { code?: number })?.code
+    if (code !== 4902) throw switchErr
+    await provider.send("wallet_addEthereumChain", [chainParams])
+    // After adding, switch to it explicitly
+    await provider.send("wallet_switchEthereumChain", [{ chainId: MONAD.chainIdHex }])
+  }
+
+  // Verify switch succeeded
+  const net2 = await provider.getNetwork()
+  if (Number(net2.chainId) !== MONAD.chainId) {
+    throw new Error("Please switch to Monad network in your wallet.")
   }
 }
 
