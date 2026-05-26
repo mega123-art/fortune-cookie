@@ -17,7 +17,10 @@ export interface FortuneRow {
 let sdkReady = false
 export function initSdk() {
   if (sdkReady) return
-  iqlabs.setNetwork("monad")
+  const envChainId = process.env.NEXT_PUBLIC_CHAIN_ID
+    ? parseInt(process.env.NEXT_PUBLIC_CHAIN_ID, 10)
+    : 143
+  iqlabs.setNetwork(envChainId === 10143 ? "monadTestnet" : "monad")
   const rpc = process.env.NEXT_PUBLIC_MONAD_RPC_URL
   if (rpc) iqlabs.setRpcUrl(rpc)
   sdkReady = true

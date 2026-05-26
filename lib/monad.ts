@@ -1,9 +1,15 @@
+const envChainId = process.env.NEXT_PUBLIC_CHAIN_ID
+  ? parseInt(process.env.NEXT_PUBLIC_CHAIN_ID, 10)
+  : 143
+
+const isTestnet = envChainId === 10143
+
 export const MONAD = {
-  chainId: 143,
-  chainIdHex: "0x8F",
-  name: "Monad",
-  rpcUrl: "https://rpc.monad.xyz",
-  explorerUrl: "https://monadvision.com",
+  chainId: envChainId,
+  chainIdHex: "0x" + envChainId.toString(16).toLowerCase(),
+  name: isTestnet ? "Monad Testnet" : "Monad",
+  rpcUrl: process.env.NEXT_PUBLIC_MONAD_RPC_URL ?? (isTestnet ? "https://testnet-rpc.monad.xyz" : "https://rpc.monad.xyz"),
+  explorerUrl: isTestnet ? "https://testnet.monadexplorer.com" : "https://monadvision.com",
   currency: { name: "MON", symbol: "MON", decimals: 18 },
 } as const
 

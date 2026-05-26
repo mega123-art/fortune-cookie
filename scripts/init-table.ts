@@ -13,8 +13,13 @@ async function main() {
   const pk = process.env.ADMIN_PRIVATE_KEY
   if (!pk) throw new Error("Set ADMIN_PRIVATE_KEY env var")
 
-  iqlabs.setNetwork("monad")
-  const provider = new JsonRpcProvider("https://rpc.monad.xyz")
+  const envChainId = process.env.NEXT_PUBLIC_CHAIN_ID
+    ? parseInt(process.env.NEXT_PUBLIC_CHAIN_ID, 10)
+    : 143
+  const isTestnet = envChainId === 10143
+  iqlabs.setNetwork(isTestnet ? "monadTestnet" : "monad")
+  const rpc = process.env.NEXT_PUBLIC_MONAD_RPC_URL ?? (isTestnet ? "https://testnet-rpc.monad.xyz" : "https://rpc.monad.xyz")
+  const provider = new JsonRpcProvider(rpc)
   const signer = new Wallet(pk, provider)
   const address = await signer.getAddress()
   console.log("Admin:", address)
