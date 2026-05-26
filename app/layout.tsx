@@ -20,11 +20,20 @@ const vt323 = VT323({
   weight: "400",
 })
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://fortune-cookie-plum.vercel.app"
+
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
   title: "Fortune Cookie — Crack Your Destiny",
   description:
     "Click to crack open a fortune cookie and reveal your message from the universe. With on-chain inscriptions on Monad.",
   openGraph: {
+    title: "Fortune Cookie — Crack Your Destiny",
+    description: "Your fortune awaits.",
+    images: ["/api/og"],
+  },
+  twitter: {
+    card: "summary_large_image",
     title: "Fortune Cookie — Crack Your Destiny",
     description: "Your fortune awaits.",
     images: ["/api/og"],
