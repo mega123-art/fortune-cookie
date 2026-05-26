@@ -109,6 +109,12 @@ export default function CookiePage() {
       localStorage.setItem("last_fortune", JSON.stringify(fortune))
       setLastFortune(fortune)
       setIsPaidRequired(true)
+
+      try {
+        const url = new URL(window.location.href)
+        url.searchParams.set("id", String(fortune.id))
+        window.history.replaceState(null, "", url.pathname + url.search)
+      } catch { /* ignore */ }
     }
   }, [fortune, addEntry])
 
@@ -116,6 +122,10 @@ export default function CookiePage() {
     setCookieState("idle")
     setConfettiBurst(false)
     setCategory("")
+
+    try {
+      window.history.replaceState(null, "", window.location.pathname)
+    } catch { /* ignore */ }
   }, [])
 
   return (

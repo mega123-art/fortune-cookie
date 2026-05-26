@@ -9,7 +9,22 @@ interface Props {
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const { id } = await searchParams
   const fortune = id ? fortunes.find((f) => f.id === Number(id)) : undefined
-  if (!fortune) return {}
+  if (!fortune) {
+    const defaultParams = new URLSearchParams({
+      fortune: "Crack open a fortune cookie to reveal your message from the universe.",
+      numbers: "7 · 14 · 21",
+      emoji: "✨",
+    })
+    const defaultImage = `/api/og?${defaultParams.toString()}`
+    return {
+      openGraph: {
+        images: [defaultImage],
+      },
+      twitter: {
+        images: [defaultImage],
+      },
+    }
+  }
 
   const ogParams = new URLSearchParams({
     fortune: fortune.text,

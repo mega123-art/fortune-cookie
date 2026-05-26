@@ -30,11 +30,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Fortune Cookie — Crack Your Destiny",
     description: "Your fortune awaits.",
+    images: ["/api/og?fortune=Crack+open+a+fortune+cookie+to+reveal+your+message+from+the+universe.&numbers=7+·+14+·+21&emoji=✨"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Fortune Cookie — Crack Your Destiny",
     description: "Your fortune awaits.",
+    images: ["/api/og?fortune=Crack+open+a+fortune+cookie+to+reveal+your+message+from+the+universe.&numbers=7+·+14+·+21&emoji=✨"],
   },
 }
 
