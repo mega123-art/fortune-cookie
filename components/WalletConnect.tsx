@@ -4,7 +4,7 @@ import { useState, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ArrowSquareOut, Warning } from "@phosphor-icons/react"
 import { connectWallet, inscribeFortuneOnChain, type WalletType } from "@/lib/wallet"
-import { MONAD_TESTNET } from "@/lib/monad"
+import { MONAD } from "@/lib/monad"
 import { type Fortune } from "@/data/fortunes"
 import WalletPicker from "./WalletPicker"
 
@@ -70,7 +70,7 @@ export default function WalletConnect({ fortune }: Props) {
             }}
           >
             <Warning size={14} />
-            Switch to Monad Testnet in your wallet
+            Switch to Monad in your wallet
           </motion.div>
         )}
       </AnimatePresence>
@@ -121,7 +121,7 @@ export default function WalletConnect({ fortune }: Props) {
         </div>
       ) : status === "inscribed" ? (
         <motion.a
-          href={`${MONAD_TESTNET.explorerUrl}/tx/${txHash}`}
+          href={`${MONAD.explorerUrl}/tx/${txHash}`}
           target="_blank"
           rel="noopener noreferrer"
           initial={{ opacity: 0, y: 4 }}

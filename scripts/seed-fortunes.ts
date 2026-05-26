@@ -18,8 +18,8 @@ async function main() {
   const pk = process.env.ADMIN_PRIVATE_KEY
   if (!pk) throw new Error("Set ADMIN_PRIVATE_KEY env var")
 
-  iqlabs.setNetwork("monadTestnet")
-  const provider = new JsonRpcProvider("https://testnet-rpc.monad.xyz")
+  iqlabs.setNetwork("monad")
+  const provider = new JsonRpcProvider("https://rpc.monad.xyz")
   const signer = new Wallet(pk, provider)
   const address = await signer.getAddress()
   console.log("Seeder:", address)

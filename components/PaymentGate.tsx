@@ -4,7 +4,7 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, ArrowRight, CheckCircle, WarningCircle, Spinner } from "@phosphor-icons/react"
 import { payForFortune, type WalletType } from "@/lib/wallet"
-import { FORTUNE_PRICE_DISPLAY, TREASURY_ADDRESS, MONAD_TESTNET } from "@/lib/monad"
+import { FORTUNE_PRICE_DISPLAY, TREASURY_ADDRESS, MONAD } from "@/lib/monad"
 import WalletPicker from "./WalletPicker"
 
 type PayState = "pick" | "paying" | "confirmed" | "error"
@@ -250,7 +250,7 @@ export default function PaymentGate({ open, authorAddress, onClose, onPaid }: Pa
                   <div className="flex flex-col gap-1">
                     {authorTxHash && (
                       <a
-                        href={`${MONAD_TESTNET.explorerUrl}/tx/${authorTxHash}`}
+                        href={`${MONAD.explorerUrl}/tx/${authorTxHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-center text-xs underline"
@@ -261,7 +261,7 @@ export default function PaymentGate({ open, authorAddress, onClose, onPaid }: Pa
                     )}
                     {txHash && (
                       <a
-                        href={`${MONAD_TESTNET.explorerUrl}/tx/${txHash}`}
+                        href={`${MONAD.explorerUrl}/tx/${txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-center text-xs underline"

@@ -1,5 +1,5 @@
 import { BrowserProvider } from "ethers"
-import { MONAD_TESTNET, FORTUNE_PRICE_WEI, FORTUNE_HALF_PRICE_WEI } from "./monad"
+import { MONAD, FORTUNE_PRICE_WEI, FORTUNE_HALF_PRICE_WEI } from "./monad"
 
 export type WalletType = "metamask" | "phantom"
 
@@ -45,21 +45,19 @@ export function getProviderForWallet(type: WalletType): BrowserProvider {
   return new BrowserProvider(window.ethereum)
 }
 
-export async function ensureMonadTestnet(provider: BrowserProvider): Promise<void> {
+export async function ensureMonad(provider: BrowserProvider): Promise<void> {
   const net = await provider.getNetwork()
-  if (Number(net.chainId) === MONAD_TESTNET.chainId) return
+  if (Number(net.chainId) === MONAD.chainId) return
   try {
-    await provider.send("wallet_switchEthereumChain", [
-      { chainId: MONAD_TESTNET.chainIdHex },
-    ])
+    await provider.send("wallet_switchEthereumChain", [{ chainId: MONAD.chainIdHex }])
   } catch {
     await provider.send("wallet_addEthereumChain", [
       {
-        chainId: MONAD_TESTNET.chainIdHex,
-        chainName: MONAD_TESTNET.name,
-        rpcUrls: [MONAD_TESTNET.rpcUrl],
-        nativeCurrency: MONAD_TESTNET.currency,
-        blockExplorerUrls: [MONAD_TESTNET.explorerUrl],
+        chainId: MONAD.chainIdHex,
+        chainName: MONAD.name,
+        rpcUrls: [MONAD.rpcUrl],
+        nativeCurrency: MONAD.currency,
+        blockExplorerUrls: [MONAD.explorerUrl],
       },
     ])
   }
@@ -67,14 +65,14 @@ export async function ensureMonadTestnet(provider: BrowserProvider): Promise<voi
 
 export async function connectWallet(type: WalletType = "metamask"): Promise<string> {
   const provider = getProviderForWallet(type)
-  await ensureMonadTestnet(provider)
+  await ensureMonad(provider)
   const signer = await provider.getSigner()
   return signer.address
 }
 
 export interface PayResult {
   treasuryTxHash: string
-  authorTxHash?: string   // set when author got a split
+  authorTxHash?: string
 }
 
 function isValidAddress(addr: string | undefined): boolean {
@@ -87,11 +85,10 @@ export async function payForFortune(
   type: WalletType = "metamask"
 ): Promise<PayResult> {
   const provider = getProviderForWallet(type)
-  await ensureMonadTestnet(provider)
+  await ensureMonad(provider)
   const signer = await provider.getSigner()
 
   if (isValidAddress(authorAddress)) {
-    // Split: 5 MON to fortune author, 5 MON to treasury (two wallet confirmations)
     const authorTx = await signer.sendTransaction({
       to: authorAddress!,
       value: FORTUNE_HALF_PRICE_WEI,
@@ -107,7 +104,6 @@ export async function payForFortune(
     return { treasuryTxHash: treasuryTx.hash, authorTxHash: authorTx.hash }
   }
 
-  // No valid author — full 10 MON to treasury
   const tx = await signer.sendTransaction({
     to: treasuryAddress,
     value: FORTUNE_PRICE_WEI,
@@ -122,7 +118,7 @@ export async function inscribeFortuneOnChain(
   type: WalletType = "metamask"
 ): Promise<string> {
   const provider = getProviderForWallet(type)
-  await ensureMonadTestnet(provider)
+  await ensureMonad(provider)
   const signer = await provider.getSigner()
 
   const data =

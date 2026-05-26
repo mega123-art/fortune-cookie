@@ -6,8 +6,8 @@ import { X, ArrowSquareOut, Sparkle } from "@phosphor-icons/react"
 import { type Signer } from "ethers"
 import { writeFortune, type FortuneRow } from "@/lib/sdk"
 import { upsertFortune } from "@/lib/fortuneCache"
-import { getProviderForWallet, ensureMonadTestnet, type WalletType } from "@/lib/wallet"
-import { MONAD_TESTNET } from "@/lib/monad"
+import { getProviderForWallet, ensureMonad, type WalletType } from "@/lib/wallet"
+import { MONAD } from "@/lib/monad"
 import WalletPicker from "./WalletPicker"
 
 type SubmitStatus = "pick" | "connecting" | "writing" | "done" | "error"
@@ -41,7 +41,7 @@ export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props
     let signer: Signer
     try {
       const provider = getProviderForWallet(type)
-      await ensureMonadTestnet(provider)
+      await ensureMonad(provider)
       signer = await provider.getSigner()
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Wallet connection failed")
@@ -304,7 +304,7 @@ export default function SubmitFortuneModal({ open, onClose, onSubmitted }: Props
                   </p>
                   {txHash && (
                     <a
-                      href={`${MONAD_TESTNET.explorerUrl}/tx/${txHash}`}
+                      href={`${MONAD.explorerUrl}/tx/${txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-xs underline underline-offset-2 focus-visible:outline-none"

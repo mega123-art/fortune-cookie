@@ -23,7 +23,7 @@ const vt323 = VT323({
 export const metadata: Metadata = {
   title: "Fortune Cookie — Crack Your Destiny",
   description:
-    "Click to crack open a fortune cookie and reveal your message from the universe. With on-chain inscriptions on Monad Testnet.",
+    "Click to crack open a fortune cookie and reveal your message from the universe. With on-chain inscriptions on Monad.",
   openGraph: {
     title: "Fortune Cookie — Crack Your Destiny",
     description: "Your fortune awaits.",

@@ -400,21 +400,12 @@ export default function CookiePage() {
       >
         Built on{" "}
         <a
-          href="https://faucet.monad.xyz"
+          href="https://monad.xyz"
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "rgba(167,139,250,0.6)", textDecoration: "underline" }}
         >
-          Monad Testnet
-        </a>
-        {" "}— Get free MON at the{" "}
-        <a
-          href="https://faucet.monad.xyz"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ color: "rgba(167,139,250,0.6)", textDecoration: "underline" }}
-        >
-          faucet
+          Monad
         </a>
       </footer>
     </main>
