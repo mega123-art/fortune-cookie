@@ -88,6 +88,7 @@ export async function ensureMonad(provider: BrowserProvider): Promise<void> {
 
 export async function connectWallet(type: WalletType = "metamask"): Promise<string> {
   const provider = getProviderForWallet(type)
+  await provider.send("eth_requestAccounts", [])
   await ensureMonad(provider)
   const signer = await provider.getSigner()
   return signer.address
@@ -108,6 +109,7 @@ export async function payForFortune(
   type: WalletType = "metamask"
 ): Promise<PayResult> {
   const provider = getProviderForWallet(type)
+  await provider.send("eth_requestAccounts", [])
   await ensureMonad(provider)
   const signer = await provider.getSigner()
 
@@ -141,6 +143,7 @@ export async function inscribeFortuneOnChain(
   type: WalletType = "metamask"
 ): Promise<string> {
   const provider = getProviderForWallet(type)
+  await provider.send("eth_requestAccounts", [])
   await ensureMonad(provider)
   const signer = await provider.getSigner()
 
