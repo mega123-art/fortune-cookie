@@ -16,6 +16,7 @@ import PaymentGate from "./PaymentGate"
 
 import { useFortune } from "@/hooks/useFortune"
 import { useHistory } from "@/hooks/useHistory"
+import { FORTUNE_PRICE_DISPLAY } from "@/lib/monad"
 
 const categoryStyle: Record<string, { bg: string; color: string }> = {
   wisdom:     { bg: "rgba(167,139,250,0.18)", color: "#C4B5FD" },
@@ -44,11 +45,14 @@ export default function CookiePage() {
   const [paymentGateOpen, setPaymentGateOpen] = useState(false)
   const [pendingFortune, setPendingFortune] = useState<import("@/data/fortunes").Fortune | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [isPaidRequired, setIsPaidRequired] = useState(false)
   const fortuneCount = useRef(0)
 
   useEffect(() => {
     setMounted(true)
-    fortuneCount.current = parseInt(localStorage.getItem("fortune_reveal_count") ?? "0", 10)
+    const count = parseInt(localStorage.getItem("fortune_reveal_count") ?? "0", 10)
+    fortuneCount.current = count
+    setIsPaidRequired(count > 0)
   }, [])
 
   const { current: fortune, pickFortune, syncing } = useFortune()
@@ -97,6 +101,7 @@ export default function CookiePage() {
       addEntry(fortune)
       fortuneCount.current += 1
       localStorage.setItem("fortune_reveal_count", String(fortuneCount.current))
+      setIsPaidRequired(true)
     }
   }, [fortune, addEntry])
 
@@ -252,7 +257,7 @@ export default function CookiePage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                🔒 0.001 MON
+                🔒 {FORTUNE_PRICE_DISPLAY}
               </motion.div>
             )}
           </AnimatePresence>
@@ -260,9 +265,9 @@ export default function CookiePage() {
 
         {/* Hint text */}
         <AnimatePresence>
-          {cookieState === "idle" && (
+          {cookieState === "idle" && !isPaidRequired && (
             <motion.p
-              key="hint"
+              key="hint-free"
               variants={stagger.item}
               exit={{ opacity: 0 }}
               className="animate-text-pulse text-center text-sm"
@@ -270,6 +275,34 @@ export default function CookiePage() {
             >
               Click to reveal your fortune
             </motion.p>
+          )}
+          {cookieState === "idle" && isPaidRequired && (
+            <motion.div
+              key="hint-paid"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ type: "spring", stiffness: 280, damping: 24 }}
+              className="flex flex-col items-center gap-1.5"
+            >
+              <div
+                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold"
+                style={{
+                  fontFamily: "var(--font-fredoka)",
+                  background: "rgba(255,215,0,0.1)",
+                  border: "1px solid rgba(255,215,0,0.3)",
+                  color: "#FFD700",
+                }}
+              >
+                {FORTUNE_PRICE_DISPLAY} to unlock
+              </div>
+              <p
+                className="text-xs text-center"
+                style={{ fontFamily: "var(--font-nunito)", color: "rgba(196,181,253,0.6)" }}
+              >
+                5 MON goes to the fortune&apos;s author
+              </p>
+            </motion.div>
           )}
           {cookieState === "cracking" && (
             <motion.p
